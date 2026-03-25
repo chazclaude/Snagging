@@ -1,0 +1,1237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>CDC Snagging</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Mono:wght@400;500&family=Figtree:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #111110;
+  --surface: #1C1C1A;
+  --surface2: #252523;
+  --surface3: #2E2E2B;
+  --ink: #F0EDE8;
+  --ink2: #A09C96;
+  --ink3: #5C5A56;
+  --border: #2E2E2B;
+  --border2: #3A3A36;
+  --accent: #E8611A;
+  --accent-dim: rgba(232,97,26,0.15);
+  --green: #3DAA6E;
+  --green-dim: rgba(61,170,110,0.12);
+  --green-border: rgba(61,170,110,0.3);
+  --red: #E85252;
+  --red-dim: rgba(232,82,82,0.12);
+  --red-border: rgba(232,82,82,0.3);
+  --amber: #D4960A;
+  --amber-dim: rgba(212,150,10,0.12);
+  --amber-border: rgba(212,150,10,0.3);
+  --blue: #4A9EE8;
+  --blue-dim: rgba(74,158,232,0.12);
+  --radius: 14px;
+  --radius-sm: 8px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+body {
+  font-family: 'Figtree', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  min-height: 100vh;
+  overscroll-behavior: none;
+}
+
+/* ─── IDENTITY GATE ─────────────────────────────── */
+.gate {
+  position: fixed; inset: 0;
+  background: var(--bg);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 32px 24px;
+  z-index: 1000;
+  gap: 0;
+}
+.gate.hidden { display: none; }
+
+.gate-logo {
+  font-family: 'Syne', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 40px;
+}
+
+.gate-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1.1;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.gate-sub {
+  font-size: 14px;
+  color: var(--ink2);
+  margin-bottom: 36px;
+  text-align: center;
+}
+
+.gate-input {
+  width: 100%;
+  max-width: 320px;
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  font-family: 'Figtree', sans-serif;
+  font-size: 16px;
+  color: var(--ink);
+  outline: none;
+  transition: border-color 0.15s;
+  margin-bottom: 12px;
+}
+.gate-input:focus { border-color: var(--accent); }
+.gate-input::placeholder { color: var(--ink3); }
+
+.gate-btn {
+  width: 100%;
+  max-width: 320px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  font-family: 'Syne', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.gate-btn:active { opacity: 0.8; }
+
+/* ─── MANAGER PIN ──────────────────────────────── */
+.pin-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 500;
+  padding: 24px;
+}
+.pin-overlay.hidden { display: none; }
+
+.pin-box {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  width: 100%;
+  max-width: 300px;
+  text-align: center;
+}
+.pin-box h3 {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.pin-box p {
+  font-size: 13px;
+  color: var(--ink2);
+  margin-bottom: 20px;
+}
+.pin-input {
+  width: 100%;
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-family: 'DM Mono', monospace;
+  font-size: 24px;
+  letter-spacing: 0.3em;
+  color: var(--ink);
+  text-align: center;
+  outline: none;
+  margin-bottom: 12px;
+}
+.pin-input:focus { border-color: var(--accent); }
+.pin-error { font-size: 12px; color: var(--red); margin-bottom: 10px; min-height: 18px; }
+.pin-row { display: flex; gap: 8px; }
+.pin-cancel {
+  flex: 1; padding: 11px;
+  background: var(--surface2); color: var(--ink2);
+  border: 1px solid var(--border2); border-radius: var(--radius-sm);
+  font-family: 'Figtree', sans-serif; font-size: 14px; font-weight: 500;
+  cursor: pointer;
+}
+.pin-confirm {
+  flex: 2; padding: 11px;
+  background: var(--accent); color: white;
+  border: none; border-radius: var(--radius-sm);
+  font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700;
+  cursor: pointer;
+}
+
+/* ─── HEADER ────────────────────────────────────── */
+.header {
+  position: sticky; top: 0; z-index: 100;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.header-top {
+  padding: 14px 16px 10px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.header-left {}
+
+.header-eyebrow {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--ink3);
+  margin-bottom: 3px;
+}
+
+.header-project {
+  font-family: 'Syne', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--ink);
+  line-height: 1;
+}
+
+.header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.trade-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--accent-dim);
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 20px;
+}
+
+.mode-pill {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  padding: 4px 10px; border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.mode-pill.sub {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--ink3);
+}
+.mode-pill.manager {
+  background: var(--blue-dim);
+  border: 1px solid var(--blue);
+  color: var(--blue);
+}
+
+/* PROGRESS */
+.progress-wrap {
+  padding: 0 16px 12px;
+}
+.progress-meta {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 6px;
+}
+.progress-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; color: var(--ink3);
+}
+.progress-pct {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px; font-weight: 700;
+  color: var(--ink);
+}
+.progress-track {
+  height: 3px;
+  background: var(--surface3);
+  border-radius: 2px; overflow: hidden;
+}
+.progress-fill {
+  height: 100%; background: var(--green);
+  border-radius: 2px;
+  transition: width 0.5s cubic-bezier(0.4,0,0.2,1);
+}
+
+/* ─── FILTERS ───────────────────────────────────── */
+.filters {
+  display: flex; gap: 6px;
+  padding: 10px 16px 6px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.filters::-webkit-scrollbar { display: none; }
+
+.filter-btn {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--ink3);
+  cursor: pointer; white-space: nowrap;
+  transition: all 0.15s;
+}
+.filter-btn.active {
+  background: var(--surface2);
+  border-color: var(--border2);
+  color: var(--ink);
+}
+
+/* ─── SNAG LIST ─────────────────────────────────── */
+.snag-list {
+  padding: 8px 12px 32px;
+  display: flex; flex-direction: column; gap: 10px;
+}
+
+/* ─── SNAG CARD ─────────────────────────────────── */
+.snag-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border2);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+
+.snag-card.complete { border-color: var(--green-border); }
+.snag-card.rejected { border-color: var(--red-border); }
+.snag-card.approved { border-color: var(--green-border); opacity: 0.6; }
+.snag-card.high-priority { border-left: 3px solid var(--accent); }
+
+/* SNAG PHOTO */
+.snag-photo-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16/9;
+  background: var(--surface2);
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.snag-photo {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s;
+}
+.snag-photo-wrap:active .snag-photo { transform: scale(1.03); }
+
+.snag-photo-placeholder {
+  width: 100%; height: 100%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 8px;
+  color: var(--ink3);
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; letter-spacing: 0.08em;
+}
+
+.photo-badge {
+  position: absolute;
+  top: 10px; left: 10px;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(4px);
+  color: white;
+  font-family: 'DM Mono', monospace;
+  font-size: 11px; font-weight: 500;
+  padding: 3px 10px;
+  border-radius: 20px;
+  letter-spacing: 0.05em;
+}
+
+.priority-badge {
+  position: absolute;
+  top: 10px; right: 10px;
+  background: var(--accent);
+  color: white;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 20px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+/* CARD BODY */
+.card-body {
+  padding: 12px 14px 10px;
+}
+
+.card-meta {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.snag-location {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--accent);
+}
+.snag-card.complete .snag-location { color: var(--green); }
+.snag-card.rejected .snag-location { color: var(--red); }
+
+.status-chip {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: 20px;
+}
+.status-chip.outstanding { background: var(--amber-dim); color: var(--amber); border: 1px solid var(--amber-border); }
+.status-chip.complete { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); }
+.status-chip.approved { background: var(--green-dim); color: var(--green); border: 1px solid var(--green-border); }
+.status-chip.rejected { background: var(--red-dim); color: var(--red); border: 1px solid var(--red-border); }
+
+.snag-desc {
+  font-size: 14px; font-weight: 500;
+  line-height: 1.45; color: var(--ink);
+  margin-bottom: 4px;
+}
+.snag-card.complete .snag-desc { color: var(--ink2); }
+.snag-card.approved .snag-desc { color: var(--ink3); }
+
+/* REJECTION BANNER */
+.rejection-banner {
+  margin: 0 14px 10px;
+  padding: 10px 12px;
+  background: var(--red-dim);
+  border-left: 3px solid var(--red);
+  border-radius: 0 6px 6px 0;
+}
+.rejection-banner-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--red); margin-bottom: 3px;
+}
+.rejection-banner-text {
+  font-size: 13px; color: var(--ink); line-height: 1.4;
+}
+
+/* SAVED NOTE */
+.saved-note {
+  margin: 0 14px 10px;
+  padding: 10px 12px;
+  background: var(--surface2);
+  border-left: 3px solid var(--border2);
+  border-radius: 0 6px 6px 0;
+}
+.saved-note-label {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
+  color: var(--ink3); margin-bottom: 3px;
+}
+.saved-note-text { font-size: 13px; color: var(--ink2); line-height: 1.4; }
+
+/* COMPLETION PHOTO PREVIEW */
+.completion-photo-wrap {
+  margin: 0 14px 10px;
+  border-radius: 8px; overflow: hidden;
+  position: relative;
+}
+.completion-photo-wrap img {
+  width: 100%; display: block;
+  border-radius: 8px;
+}
+.completion-photo-label {
+  position: absolute; top: 8px; left: 8px;
+  background: rgba(0,0,0,0.65); backdrop-filter: blur(4px);
+  color: white; font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.08em;
+  padding: 3px 8px; border-radius: 20px;
+}
+
+/* TIMESTAMP */
+.card-timestamp {
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; color: var(--ink3);
+  padding: 0 14px 10px;
+}
+
+/* NOTE AREA */
+.note-area {
+  padding: 0 14px 12px;
+  display: none;
+}
+.note-area.open { display: block; }
+
+.note-textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+  font-family: 'Figtree', sans-serif;
+  font-size: 13px; color: var(--ink);
+  resize: none; min-height: 68px;
+  line-height: 1.5; outline: none;
+  transition: border-color 0.15s;
+}
+.note-textarea:focus { border-color: var(--accent); }
+.note-textarea::placeholder { color: var(--ink3); }
+
+.note-save { margin-top: 8px; }
+
+/* PHOTO UPLOAD */
+.photo-upload-area {
+  margin-top: 10px;
+  border: 1.5px dashed var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  display: flex; align-items: center; gap: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+.photo-upload-area:active { border-color: var(--accent); }
+.photo-upload-area input { display: none; }
+.photo-upload-icon { color: var(--ink3); flex-shrink: 0; }
+.photo-upload-text { font-size: 13px; color: var(--ink3); }
+.photo-upload-text strong { color: var(--ink2); display: block; font-size: 13px; }
+.photo-preview-thumb {
+  width: 100%; border-radius: 6px;
+  margin-top: 10px; display: block;
+}
+
+/* ─── CARD ACTIONS ──────────────────────────────── */
+.card-divider { height: 1px; background: var(--border); margin: 0; }
+
+.card-actions { padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; }
+
+.btn-primary {
+  width: 100%; padding: 13px;
+  background: var(--green); color: white;
+  border: none; border-radius: var(--radius-sm);
+  font-family: 'Syne', sans-serif;
+  font-size: 15px; font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  transition: opacity 0.15s;
+}
+.btn-primary:active { opacity: 0.85; }
+
+.btn-secondary-row { display: flex; gap: 8px; }
+
+.btn-secondary {
+  flex: 1; padding: 10px;
+  background: var(--surface2); color: var(--ink2);
+  border: 1px solid var(--border2); border-radius: var(--radius-sm);
+  font-family: 'Figtree', sans-serif;
+  font-size: 13px; font-weight: 500;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: all 0.15s;
+}
+.btn-secondary:active { background: var(--surface3); }
+
+/* MANAGER ACTIONS */
+.manager-actions { padding: 10px 14px 12px; display: flex; gap: 8px; }
+
+.btn-approve {
+  flex: 1; padding: 12px;
+  background: var(--green); color: white;
+  border: none; border-radius: var(--radius-sm);
+  font-family: 'Syne', sans-serif;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: opacity 0.15s;
+}
+.btn-approve:active { opacity: 0.8; }
+
+.btn-reject {
+  flex: 1; padding: 12px;
+  background: var(--red-dim); color: var(--red);
+  border: 1px solid var(--red-border); border-radius: var(--radius-sm);
+  font-family: 'Syne', sans-serif;
+  font-size: 14px; font-weight: 700;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  transition: opacity 0.15s;
+}
+.btn-reject:active { opacity: 0.8; }
+
+/* ─── REJECT MODAL ──────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.85);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: flex-end; justify-content: center;
+  z-index: 400; padding: 0;
+}
+.modal-overlay.hidden { display: none; }
+
+.modal-sheet {
+  background: var(--surface);
+  border-radius: var(--radius) var(--radius) 0 0;
+  border: 1px solid var(--border2);
+  border-bottom: none;
+  padding: 24px 20px 36px;
+  width: 100%; max-width: 480px;
+}
+.modal-handle {
+  width: 36px; height: 4px;
+  background: var(--border2); border-radius: 2px;
+  margin: 0 auto 20px;
+}
+.modal-title {
+  font-family: 'Syne', sans-serif;
+  font-size: 18px; font-weight: 700;
+  margin-bottom: 4px;
+}
+.modal-sub {
+  font-size: 13px; color: var(--ink2);
+  margin-bottom: 16px;
+}
+.modal-textarea {
+  width: 100%;
+  background: var(--surface2);
+  border: 1.5px solid var(--border2);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-family: 'Figtree', sans-serif;
+  font-size: 14px; color: var(--ink);
+  resize: none; min-height: 100px;
+  line-height: 1.5; outline: none;
+  margin-bottom: 14px;
+}
+.modal-textarea:focus { border-color: var(--red); }
+.modal-textarea::placeholder { color: var(--ink3); }
+.modal-btn-row { display: flex; gap: 10px; }
+.modal-cancel {
+  flex: 1; padding: 13px;
+  background: var(--surface2); color: var(--ink2);
+  border: 1px solid var(--border2); border-radius: var(--radius-sm);
+  font-family: 'Figtree', sans-serif; font-size: 14px; font-weight: 500;
+  cursor: pointer;
+}
+.modal-confirm {
+  flex: 2; padding: 13px;
+  background: var(--red); color: white;
+  border: none; border-radius: var(--radius-sm);
+  font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700;
+  cursor: pointer;
+}
+
+/* ─── LIGHTBOX ──────────────────────────────────── */
+.lightbox {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.95);
+  z-index: 600;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+}
+.lightbox.hidden { display: none; }
+.lightbox img {
+  max-width: 100%; max-height: 90vh;
+  object-fit: contain; border-radius: 8px;
+}
+.lightbox-close {
+  position: absolute; top: 16px; right: 16px;
+  background: rgba(255,255,255,0.1);
+  border: none; color: white;
+  width: 40px; height: 40px;
+  border-radius: 50%; font-size: 20px;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+
+/* ─── EMPTY / DONE ──────────────────────────────── */
+.empty-state {
+  text-align: center; padding: 56px 24px;
+  color: var(--ink3); font-size: 14px;
+  display: none;
+}
+.empty-state.visible { display: block; }
+
+.all-done-wrap {
+  display: none; flex-direction: column;
+  align-items: center; text-align: center;
+  padding: 56px 24px; gap: 12px;
+}
+.all-done-wrap.visible { display: flex; }
+.all-done-icon {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: var(--green-dim);
+  border: 1px solid var(--green-border);
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 8px;
+}
+.all-done-wrap h2 {
+  font-family: 'Syne', sans-serif;
+  font-size: 28px; font-weight: 800; color: var(--green);
+}
+.all-done-wrap p { font-size: 14px; color: var(--ink2); max-width: 240px; line-height: 1.5; }
+
+/* ─── TOAST ─────────────────────────────────────── */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(80px);
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--ink); padding: 11px 18px;
+  border-radius: var(--radius-sm);
+  font-size: 13px; font-weight: 500;
+  white-space: nowrap; z-index: 999;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+  transition: transform 0.3s cubic-bezier(0.4,0,0.2,1);
+  display: flex; align-items: center; gap: 8px;
+}
+.toast.show { transform: translateX(-50%) translateY(0); }
+.toast-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.toast-dot.green { background: var(--green); }
+.toast-dot.red { background: var(--red); }
+.toast-dot.amber { background: var(--amber); }
+
+/* ─── FOOTER ─────────────────────────────────────── */
+.footer {
+  text-align: center;
+  padding: 8px 20px 32px;
+  font-family: 'DM Mono', monospace;
+  font-size: 10px; letter-spacing: 0.1em;
+  color: var(--ink3); text-transform: uppercase;
+}
+
+/* LOADING SCREEN */
+.loading-screen { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; z-index: 2000; }
+.loading-screen.hidden { display: none; }
+.loading-spinner { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--surface3); border-top-color: var(--accent); animation: spin 0.8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-text { font-family: 'DM Mono', monospace; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; color: var(--ink3); }
+.error-screen { position: fixed; inset: 0; background: var(--bg); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 32px; text-align: center; z-index: 2000; }
+.error-screen.hidden { display: none; }
+.error-screen h3 { font-family: 'Syne', sans-serif; font-size: 20px; font-weight: 700; color: var(--red); }
+.error-screen p { font-size: 13px; color: var(--ink2); line-height: 1.5; }
+.error-retry { margin-top: 8px; padding: 12px 24px; background: var(--accent); color: white; border: none; border-radius: var(--radius-sm); font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<!-- LOADING -->
+<div class="loading-screen hidden" id="loadingScreen">
+  <div class="loading-spinner"></div>
+  <div class="loading-text">Loading snags...</div>
+</div>
+
+<!-- ERROR -->
+<div class="error-screen hidden" id="errorScreen">
+  <h3>Could not load snags</h3>
+  <p id="errorMsg">Check your connection and try again.</p>
+  <button class="error-retry" onclick="loadSnags()">Retry</button>
+</div>
+
+<!-- IDENTITY GATE -->
+<div class="gate" id="gate">
+  <div class="gate-logo">Charles Dale Construction</div>
+  <div class="gate-title">Welcome to<br>CDC Snagging</div>
+  <div class="gate-sub" id="gateSub">Loading...</div>
+  <input class="gate-input" id="nameInput" type="text" placeholder="Your name" autocomplete="off" />
+  <button class="gate-btn" onclick="submitName()">View My Snags</button>
+</div>
+
+<!-- MANAGER PIN OVERLAY -->
+<div class="pin-overlay hidden" id="pinOverlay">
+  <div class="pin-box">
+    <h3>Manager Access</h3>
+    <p>Enter your PIN to switch to manager review mode</p>
+    <input class="pin-input" id="pinInput" type="password" inputmode="numeric" maxlength="4" placeholder="····" />
+    <div class="pin-error" id="pinError"></div>
+    <div class="pin-row">
+      <button class="pin-cancel" onclick="closePinOverlay()">Cancel</button>
+      <button class="pin-confirm" onclick="checkPin()">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- REJECT MODAL -->
+<div class="modal-overlay hidden" id="rejectModal">
+  <div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">Reject Snag</div>
+    <div class="modal-sub" id="rejectModalSub">Snag 008 will be returned to Outstanding</div>
+    <textarea class="modal-textarea" id="rejectReasonInput" placeholder="Reason for rejection — this will be shown to the sub&#10;e.g. Paint still visible under cornice, needs another coat"></textarea>
+    <div class="modal-btn-row">
+      <button class="modal-cancel" onclick="closeRejectModal()">Cancel</button>
+      <button class="modal-confirm" onclick="confirmReject()">Reject &amp; Return</button>
+    </div>
+  </div>
+</div>
+
+<!-- LIGHTBOX -->
+<div class="lightbox hidden" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">✕</button>
+  <img id="lightboxImg" src="" alt="Snag photo" />
+</div>
+
+<!-- MAIN APP (hidden until name entered) -->
+<div id="app" style="display:none">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-top">
+      <div class="header-left">
+        <div class="header-eyebrow">Charles Dale Construction</div>
+        <div class="header-project" id="headerProject">48 Edwardes Square</div>
+      </div>
+      <div class="header-right">
+        <div class="trade-pill">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></svg>
+          <span id="tradePillLabel">Decorator</span>
+        </div>
+        <div class="mode-pill sub" id="modePill" onclick="handleModeClick()">
+          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+          <span id="modePillLabel">Sub View</span>
+        </div>
+      </div>
+    </div>
+    <div class="progress-wrap">
+      <div class="progress-meta">
+        <span class="progress-label" id="progressLabel">0 of 5 complete</span>
+        <span class="progress-pct" id="progressPct">0%</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- FILTERS -->
+  <div class="filters" id="filterRow"></div>
+
+  <!-- LIST -->
+  <div class="snag-list" id="snagList"></div>
+  <div class="empty-state" id="emptyState">No snags in this view.</div>
+  <div class="all-done-wrap" id="allDone">
+    <div class="all-done-icon">
+      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#3DAA6E" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>
+    </div>
+    <h2>All Done!</h2>
+    <p>All snags complete. The site manager has been notified to review.</p>
+  </div>
+
+  <div class="footer">CDC Snagging &middot; <span id="footerName"></span></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <div class="toast-dot green" id="toastDot"></div>
+  <span id="toastMsg"></span>
+</div>
+<script>
+// ═══════════════════════════════════════════
+// CONFIG — update per deployment
+// ═══════════════════════════════════════════
+const SCRIPT_URL   = 'https://script.google.com/macros/s/AKfycbwUqgNhO1To5uXkW4CqBiF267_2rYzpNvnpLpvyw0j_BDSUU3QU8iM2CACFvSJq2nBqxw/exec';
+const TRADE_FILTER = 'Decorator';
+const PROJECT_NAME = '48 Edwardes Square';
+const MANAGER_PIN  = '1234';
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let snags        = [];
+let subName      = '';
+let isManager    = false;
+let currentFilter = 'all';
+let rejectingId  = null;
+let openNoteIds  = new Set();
+let savingIds    = new Set();
+
+// ═══════════════════════════════════════════
+// BOOT
+// ═══════════════════════════════════════════
+async function loadSnags() {
+  document.getElementById('loadingScreen').classList.remove('hidden');
+  document.getElementById('errorScreen').classList.add('hidden');
+  document.getElementById('gate').classList.add('hidden');
+
+  try {
+    const res  = await fetch(`${SCRIPT_URL}?trade=${encodeURIComponent(TRADE_FILTER)}`);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Script error');
+
+    snags = json.snags.map(r => ({
+      id:            r.rowIndex,
+      rowIndex:      r.rowIndex,
+      num:           r.snagNo,
+      floor:         r.floor,
+      location:      r.location,
+      desc:          r.description,
+      trade:         r.trade,
+      priority:      (r.priority || 'normal').toLowerCase(),
+      photo:         r.photoUrl || null,
+      status:        (r.status || 'outstanding').toLowerCase(),
+      note:          r.note || '',
+      completedBy:   r.completedBy || null,
+      completedAt:   r.completedAt || null,
+      approvedAt:    r.approvedAt  || null,
+      rejectionNote: r.rejectionNote || null,
+    }));
+
+    document.getElementById('gateSub').textContent    = PROJECT_NAME + ' — ' + TRADE_FILTER;
+    document.getElementById('headerProject').textContent = PROJECT_NAME;
+    document.getElementById('tradePillLabel').textContent = TRADE_FILTER;
+    document.getElementById('loadingScreen').classList.add('hidden');
+    document.getElementById('gate').classList.remove('hidden');
+
+  } catch (err) {
+    document.getElementById('loadingScreen').classList.add('hidden');
+    document.getElementById('errorScreen').classList.remove('hidden');
+    document.getElementById('errorMsg').textContent = err.message || 'Could not reach the server.';
+  }
+}
+
+// ═══════════════════════════════════════════
+// GATE
+// ═══════════════════════════════════════════
+document.getElementById('nameInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') submitName();
+});
+function submitName() {
+  const val = document.getElementById('nameInput').value.trim();
+  if (!val) { document.getElementById('nameInput').style.borderColor = 'var(--red)'; return; }
+  subName = val;
+  document.getElementById('gate').classList.add('hidden');
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('footerName').textContent = subName;
+  buildFilters();
+  render();
+}
+
+// ═══════════════════════════════════════════
+// PIN / MODE
+// ═══════════════════════════════════════════
+function handleModeClick() {
+  if (isManager) { isManager = false; updateModePill(); render(); showToast('Switched to sub view','amber'); }
+  else openPinOverlay();
+}
+function openPinOverlay() {
+  document.getElementById('pinOverlay').classList.remove('hidden');
+  document.getElementById('pinInput').value = '';
+  document.getElementById('pinError').textContent = '';
+  setTimeout(() => document.getElementById('pinInput').focus(), 100);
+}
+function closePinOverlay() { document.getElementById('pinOverlay').classList.add('hidden'); }
+document.getElementById('pinInput').addEventListener('keydown', e => { if (e.key === 'Enter') checkPin(); });
+function checkPin() {
+  if (document.getElementById('pinInput').value === MANAGER_PIN) {
+    isManager = true; closePinOverlay(); updateModePill(); render(); showToast('Manager mode active','amber');
+  } else {
+    document.getElementById('pinError').textContent = 'Incorrect PIN';
+    document.getElementById('pinInput').value = '';
+  }
+}
+function updateModePill() {
+  const pill = document.getElementById('modePill');
+  const lbl  = document.getElementById('modePillLabel');
+  if (isManager) { pill.className='mode-pill manager'; lbl.textContent='Manager'; }
+  else           { pill.className='mode-pill sub';     lbl.textContent='Sub View'; }
+}
+
+// ═══════════════════════════════════════════
+// FILTERS
+// ═══════════════════════════════════════════
+function buildFilters() {
+  const row = document.getElementById('filterRow');
+  const fs  = [
+    {key:'all',label:'All'},{key:'outstanding',label:'Outstanding'},{key:'complete',label:'Complete'},
+    {key:'LGF',label:'LGF'},{key:'GF',label:'GF'},{key:'FF',label:'FF'},
+  ];
+  row.innerHTML = fs.map(f =>
+    `<button class="filter-btn ${f.key==='all'?'active':''}" onclick="setFilter('${f.key}',this)">${f.label}</button>`
+  ).join('');
+}
+function setFilter(key, btn) {
+  currentFilter = key;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+// ═══════════════════════════════════════════
+// RENDER
+// ═══════════════════════════════════════════
+function render() {
+  const list  = document.getElementById('snagList');
+  const empty = document.getElementById('emptyState');
+  const done  = document.getElementById('allDone');
+
+  const filtered = snags.filter(s => {
+    if (!isManager && s.status === 'approved') return false;
+    if (currentFilter === 'all') return true;
+    if (['LGF','GF','FF','SF'].includes(currentFilter)) return s.floor === currentFilter;
+    if (currentFilter === 'outstanding') return s.status === 'outstanding' || s.status === 'rejected';
+    return s.status === currentFilter;
+  });
+
+  const allComplete = snags.filter(s => s.status !== 'approved').every(s => s.status === 'complete');
+  list.innerHTML = '';
+  done.classList.toggle('visible', !isManager && allComplete && filtered.length > 0 && filtered.every(s=>s.status==='complete'));
+  empty.classList.toggle('visible', filtered.length === 0);
+  filtered.forEach(s => list.appendChild(buildCard(s)));
+  updateProgress();
+}
+
+function buildCard(snag) {
+  const card = document.createElement('div');
+  card.id    = `card-${snag.id}`;
+  card.className = `snag-card ${snag.status}${snag.priority==='high'?' high-priority':''}`;
+  const isSaving = savingIds.has(snag.id);
+  const noteOpen = openNoteIds.has(snag.id);
+
+  const photoHTML = snag.photo
+    ? `<div class="snag-photo-wrap" onclick="openLightbox('${snag.photo}')">
+        <img class="snag-photo" src="${snag.photo}" loading="lazy" alt="Snag photo"/>
+        <div class="photo-badge">Snag ${snag.num}</div>
+        ${snag.priority==='high'?'<div class="priority-badge">⚡ High</div>':''}
+       </div>`
+    : `<div class="snag-photo-wrap">
+        <div class="snag-photo-placeholder">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>No photo
+        </div>
+        ${snag.priority==='high'?'<div class="priority-badge">⚡ High</div>':''}
+       </div>`;
+
+  const rejectionHTML = snag.rejectionNote
+    ? `<div class="rejection-banner">
+        <div class="rejection-banner-label">⚠ Returned by manager</div>
+        <div class="rejection-banner-text">${escHtml(snag.rejectionNote)}</div>
+       </div>` : '';
+
+  const noteHTML = snag.note
+    ? `<div class="saved-note">
+        <div class="saved-note-label">Note</div>
+        <div class="saved-note-text">${escHtml(snag.note)}</div>
+       </div>` : '';
+
+  const tsHTML = snag.completedAt
+    ? `<div class="card-timestamp">Completed ${snag.completedAt}${snag.completedBy?' by '+snag.completedBy:''}</div>` : '';
+
+  const noteAreaHTML = `
+    <div class="note-area ${noteOpen?'open':''}" id="note-area-${snag.id}">
+      <textarea class="note-textarea" id="note-input-${snag.id}" rows="3"
+        placeholder="Add a note, e.g. &apos;Used F&amp;B Cornforth White No.228&apos;">${escHtml(snag.note)}</textarea>
+      <div class="note-save">
+        <button class="btn-secondary" style="width:auto;padding:8px 16px" onclick="saveNote(${snag.id})">Save Note</button>
+      </div>
+    </div>`;
+
+  let actionsHTML = '';
+  if (isManager) {
+    if (snag.status === 'complete') {
+      actionsHTML = `<div class="card-divider"></div><div class="manager-actions">
+        <button class="btn-approve" onclick="approveSnag(${snag.id})" ${isSaving?'disabled':''}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          ${isSaving?'Saving…':'Approve'}
+        </button>
+        <button class="btn-reject" onclick="openRejectModal(${snag.id})" ${isSaving?'disabled':''}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          Reject
+        </button>
+      </div>`;
+    } else if (snag.status === 'approved') {
+      actionsHTML = `<div class="card-divider"></div><div class="manager-actions">
+        <button class="btn-reject" style="flex:1" onclick="openRejectModal(${snag.id})" ${isSaving?'disabled':''}>
+          Remove Approval
+        </button>
+      </div>`;
+    }
+  } else {
+    if (snag.status === 'outstanding' || snag.status === 'rejected') {
+      actionsHTML = `<div class="card-divider"></div><div class="card-actions">
+        <button class="btn-primary" onclick="markDone(${snag.id})" ${isSaving?'disabled':''}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+          ${isSaving?'Saving…':'Mark Complete'}
+        </button>
+        <div class="btn-secondary-row">
+          <button class="btn-secondary" onclick="toggleNote(${snag.id})">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            ${snag.note?'Edit Note':'Add Note'}
+          </button>
+        </div>
+      </div>`;
+    }
+  }
+
+  card.innerHTML = `${photoHTML}
+    <div class="card-body">
+      <div class="card-meta">
+        <div class="snag-location">${snag.location}</div>
+        <span class="status-chip ${snag.status}">${statusLabel(snag.status)}</span>
+      </div>
+      <div class="snag-desc">${escHtml(snag.desc)}</div>
+    </div>
+    ${rejectionHTML}${noteHTML}${tsHTML}${noteAreaHTML}${actionsHTML}`;
+  return card;
+}
+
+// ═══════════════════════════════════════════
+// API WRITE
+// ═══════════════════════════════════════════
+async function postAction(id, action, payload) {
+  const snag = snags.find(s => s.id === id);
+  savingIds.add(id); render();
+  try {
+    const res  = await fetch(SCRIPT_URL, {
+      method: 'POST',
+      body:   JSON.stringify({ rowIndex: snag.rowIndex, action, payload }),
+    });
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error || 'Write failed');
+  } catch (err) {
+    savingIds.delete(id); render();
+    showToast('Save failed — check connection','red');
+    return false;
+  }
+  savingIds.delete(id);
+  return true;
+}
+
+// ═══════════════════════════════════════════
+// ACTIONS — SUB
+// ═══════════════════════════════════════════
+async function markDone(id) {
+  const snag   = snags.find(s => s.id === id);
+  const noteEl = document.getElementById(`note-input-${id}`);
+  const note   = noteEl ? noteEl.value.trim() : snag.note;
+  const ts     = formatTs(new Date());
+  const ok     = await postAction(id, 'markComplete', { note, completedBy: subName, completedAt: ts });
+  if (!ok) return;
+  snag.status = 'complete'; snag.note = note; snag.completedBy = subName;
+  snag.completedAt = ts; snag.rejectionNote = null;
+  openNoteIds.delete(id); render();
+  showToast(`Snag ${snag.num} marked complete`,'green');
+}
+
+function toggleNote(id) {
+  if (openNoteIds.has(id)) openNoteIds.delete(id); else openNoteIds.add(id);
+  render();
+  if (openNoteIds.has(id)) setTimeout(() => { const el = document.getElementById(`note-input-${id}`); if (el) el.focus(); }, 50);
+}
+
+async function saveNote(id) {
+  const input = document.getElementById(`note-input-${id}`);
+  const note  = input ? input.value.trim() : '';
+  const ok    = await postAction(id, 'saveNote', { note });
+  if (!ok) return;
+  snags.find(s => s.id === id).note = note;
+  openNoteIds.delete(id); render();
+  showToast('Note saved','green');
+}
+
+// ═══════════════════════════════════════════
+// ACTIONS — MANAGER
+// ═══════════════════════════════════════════
+async function approveSnag(id) {
+  const ts  = formatTs(new Date());
+  const ok  = await postAction(id, 'approve', { approvedAt: ts });
+  if (!ok) return;
+  const snag = snags.find(s => s.id === id);
+  snag.status = 'approved'; snag.approvedAt = ts;
+  render(); showToast(`Snag ${snag.num} approved`,'green');
+}
+
+function openRejectModal(id) {
+  rejectingId = id;
+  const snag  = snags.find(s => s.id === id);
+  document.getElementById('rejectModalSub').textContent = `Snag ${snag.num} will be returned to Outstanding`;
+  document.getElementById('rejectReasonInput').value = '';
+  document.getElementById('rejectModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('rejectReasonInput').focus(), 100);
+}
+function closeRejectModal() { document.getElementById('rejectModal').classList.add('hidden'); rejectingId = null; }
+
+async function confirmReject() {
+  if (!rejectingId) return;
+  const reason = document.getElementById('rejectReasonInput').value.trim() || 'Returned for rework — see site manager';
+  const id     = rejectingId;
+  closeRejectModal();
+  const ok = await postAction(id, 'reject', { rejectionNote: reason });
+  if (!ok) return;
+  const snag = snags.find(s => s.id === id);
+  snag.status = 'rejected'; snag.rejectionNote = reason;
+  snag.completedAt = null; snag.completedBy = null; snag.approvedAt = null;
+  render(); showToast(`Snag ${snag.num} returned`,'red');
+}
+
+// ═══════════════════════════════════════════
+// LIGHTBOX
+// ═══════════════════════════════════════════
+function openLightbox(src) {
+  document.getElementById('lightboxImg').src = src;
+  document.getElementById('lightbox').classList.remove('hidden');
+}
+function closeLightbox() { document.getElementById('lightbox').classList.add('hidden'); }
+
+// ═══════════════════════════════════════════
+// PROGRESS
+// ═══════════════════════════════════════════
+function updateProgress() {
+  const total    = snags.length;
+  const approved = snags.filter(s => s.status==='approved').length;
+  const complete = snags.filter(s => s.status==='complete').length;
+  const out      = snags.filter(s => s.status==='outstanding'||s.status==='rejected').length;
+  const pct      = total===0 ? 0 : Math.round(((complete+approved)/total)*100);
+  document.getElementById('progressLabel').textContent = isManager
+    ? `${approved} approved · ${complete} to review · ${out} outstanding`
+    : `${complete} of ${total-approved} complete`;
+  document.getElementById('progressPct').textContent  = `${pct}%`;
+  document.getElementById('progressFill').style.width = `${pct}%`;
+}
+
+// ═══════════════════════════════════════════
+// TOAST / UTILS
+// ═══════════════════════════════════════════
+let toastTimer;
+function showToast(msg, colour='green') {
+  const toast = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  document.getElementById('toastDot').className = `toast-dot ${colour}`;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toast.classList.remove('show'), 2400);
+}
+function escHtml(s) {
+  if (!s) return '';
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function statusLabel(s) {
+  return {outstanding:'Outstanding',complete:'Complete',approved:'Approved',rejected:'Returned'}[s]||s;
+}
+function formatTs(d) {
+  return d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'})
+    +' · '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+}
+
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+loadSnags();
+</script>
+</body>
+</html>
