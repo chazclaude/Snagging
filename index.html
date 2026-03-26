@@ -847,7 +847,7 @@ body {
 // CONFIG — update per deployment
 // ═══════════════════════════════════════════
 const SCRIPT_URL   = 'https://script.google.com/macros/s/AKfycbwUqgNhO1To5uXkW4CqBiF267_2rYzpNvnpLpvyw0j_BDSUU3QU8iM2CACFvSJq2nBqxw/exec';
-const TRADE_FILTER = 'Decorator';
+const TRADE_FILTER = new URLSearchParams(window.location.search).get('trade') || 'Decorator';
 const PROJECT_NAME = '48 Edwardes Square';
 const MANAGER_PIN  = '1234';
 
